@@ -368,8 +368,12 @@ class OptaLoader(EventDataLoader):
             feed_files = glob.glob(os.path.join(self.root, glob_pattern))
             for ffp in feed_files:
                 ids = _extract_ids_from_path(ffp, feed_pattern)
-                parser = self.parsers[feed](ffp, **ids)
-                _deepupdate(data, parser.extract_games())
+                try:
+                    parser = self.parsers[feed](ffp, **ids)
+                    _deepupdate(data, parser.extract_games())
+                except Exception:
+                    continue
+
         return pd.DataFrame(list(data.values())).pipe(DataFrame[OptaGameSchema])
 
     def teams(self, game_id: int) -> DataFrame[OptaTeamSchema]:
