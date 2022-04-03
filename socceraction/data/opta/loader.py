@@ -371,8 +371,7 @@ class OptaLoader(EventDataLoader):
                 try:
                     parser = self.parsers[feed](ffp, **ids)
                     _deepupdate(data, parser.extract_games())
-                except Exception as e:
-                    print(e)
+                except Exception:
                     continue
 
         return pd.DataFrame(list(data.values())).pipe(DataFrame[OptaGameSchema])
