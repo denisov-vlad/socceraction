@@ -29,6 +29,7 @@ class SPADLSchema(pa.SchemaModel):
     result_name: Optional[Series[str]] = pa.Field(isin=spadlconfig.results_df().result_name)
     extra: Optional[Series["object"]] = pa.Field(nullable=True)
 
+
     class Config:  # noqa: D106
         strict = True
         coerce = True
