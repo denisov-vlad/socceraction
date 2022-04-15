@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Opta event stream data to SPADL converter."""
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Tuple
 
 import pandas as pd  # type: ignore
 from pandera.typing import DataFrame
@@ -54,6 +54,7 @@ def convert_to_actions(events: pd.DataFrame, home_team_id: int) -> DataFrame[SPA
         _get_result_id, axis=1
     )
     actions['bodypart_id'] = events.qualifiers.apply(_get_bodypart_id)
+    actions['extra'] = events.qualifiers.apply(_add_extra)
 
     actions = (
         actions[actions.type_id != spadlconfig.actiontypes.index('non_action')]
@@ -155,6 +156,21 @@ def _get_type_id(args: Tuple[str, bool, Dict[int, Any]]) -> int:  # noqa: C901
     else:
         a = 'non_action'
     return spadlconfig.actiontypes.index(a)
+
+
+def _add_extra(qualifiers: Dict[int, Any]) -> List[str]:
+    extra = []
+
+    if 22 in qualifiers:
+        extra.append("open_play")
+    if 89 in qualifiers:
+        extra.append("one-on-one")
+    if 214 in qualifiers:
+        extra.append("big_chance")
+    if 215 in qualifiers:
+        extra.append("individual_play")
+
+    return extra
 
 
 def _fix_owngoals(actions: pd.DataFrame) -> pd.DataFrame:
