@@ -164,7 +164,7 @@ def _add_extra(qualifiers: Dict[int, Any]) -> List[str]:
     if 22 in qualifiers:
         extra.append("open_play")
     if 89 in qualifiers:
-        extra.append("one-on-one")
+        extra.append("one_on_one")
     if 214 in qualifiers:
         extra.append("big_chance")
     if 215 in qualifiers:
