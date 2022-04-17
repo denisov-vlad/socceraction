@@ -1,5 +1,5 @@
 """Schema for SPADL actions."""
-from typing import Any, Optional, List
+from typing import Any, List, Optional
 
 import pandera as pa
 from pandera.typing import Series
