@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Opta event stream data to SPADL converter."""
-from typing import Any, Dict, Tuple
+from collections import OrderedDict
+from typing import Any, Dict, Iterable, List, Tuple
 
 import pandas as pd  # type: ignore
 from pandera.typing import DataFrame
@@ -27,11 +28,19 @@ def convert_to_actions(events: pd.DataFrame, home_team_id: int) -> DataFrame[SPA
         DataFrame with corresponding SPADL actions.
 
     """
+
+    events['spadl_type_id'] = events[['type_name', 'outcome', 'qualifiers']].apply(
+        _get_type_id, axis=1
+    )
+    idx_to_keep = events.spadl_type_id != spadlconfig.actiontypes.index('non_action')
+    events = events[idx_to_keep].reset_index(drop=True)
+
     actions = pd.DataFrame()
 
     actions['game_id'] = events.game_id
     actions['original_event_id'] = events.event_id.astype(object)
     actions['period_id'] = events.period_id
+    actions['qualifiers'] = events.qualifiers
 
     actions['time_seconds'] = (
         60 * events.minute
@@ -49,29 +58,34 @@ def convert_to_actions(events: pd.DataFrame, home_team_id: int) -> DataFrame[SPA
     for col in ['start_y', 'end_y']:
         actions[col] = events[col].clip(0, 100) / 100 * spadlconfig.field_width
 
-    actions['type_id'] = events[['type_name', 'outcome', 'qualifiers']].apply(_get_type_id, axis=1)
+    actions['type_id'] = events.pop('spadl_type_id')
     actions['result_id'] = events[['type_name', 'outcome', 'qualifiers']].apply(
         _get_result_id, axis=1
     )
-    actions['bodypart_id'] = events.qualifiers.apply(_get_bodypart_id)
+    actions['bodypart_id'] = actions.qualifiers.apply(_get_bodypart_id)
+    actions = actions.sort_values(['game_id', 'period_id', 'time_seconds']).reset_index(drop=True)
 
-    actions = (
-        actions[actions.type_id != spadlconfig.actiontypes.index('non_action')]
-        .sort_values(['game_id', 'period_id', 'time_seconds'])
-        .reset_index(drop=True)
-    )
     actions = _fix_owngoals(actions)
     actions = _fix_direction_of_play(actions, home_team_id)
     actions = _fix_clearances(actions)
     actions['action_id'] = range(len(actions))
     actions = _add_dribbles(actions)
+    actions['extra'] = actions.qualifiers.apply(_add_extra)
+
+    actions = actions.drop(columns=["qualifiers"])
 
     return actions.pipe(DataFrame[SPADLSchema])
 
 
 def _get_bodypart_id(qualifiers: Dict[int, Any]) -> int:
-    if 15 in qualifiers:
+    if 15 in qualifiers or 3 in qualifiers:
         b = 'head'
+    elif 21 in qualifiers:
+        b = 'other'
+    elif 20 in qualifiers:
+        b = 'foot_right'
+    elif 72 in qualifiers:
+        b = 'foot_left'
     elif 21 in qualifiers:
         b = 'other'
     else:
@@ -155,6 +169,23 @@ def _get_type_id(args: Tuple[str, bool, Dict[int, Any]]) -> int:  # noqa: C901
     else:
         a = 'non_action'
     return spadlconfig.actiontypes.index(a)
+
+
+extra_qualifiers = OrderedDict(
+    [(22, 'open_play'), (89, 'one_on_one'), (214, 'big_chance'), (215, 'individual_play')]
+)
+
+
+def _add_extra(qualifiers: Dict[int, Any]) -> List[int]:
+
+    if not isinstance(qualifiers, dict):
+        return [0] * len(extra_qualifiers)
+
+    extra = []
+    for e in extra_qualifiers.keys():
+        extra.append(1) if e in qualifiers else extra.append(0)
+
+    return extra
 
 
 def _fix_owngoals(actions: pd.DataFrame) -> pd.DataFrame:

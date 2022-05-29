@@ -1,5 +1,5 @@
 """Schema for SPADL actions."""
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 import pandera as pa
 from pandera.typing import Series
@@ -27,6 +27,8 @@ class SPADLSchema(pa.SchemaModel):
     type_name: Optional[Series[str]] = pa.Field(isin=spadlconfig.actiontypes_df().type_name)
     result_id: Series[int] = pa.Field(isin=spadlconfig.results_df().result_id)
     result_name: Optional[Series[str]] = pa.Field(isin=spadlconfig.results_df().result_name)
+    extra: Optional[Series["object"]] = pa.Field(nullable=True)
+
 
     class Config:  # noqa: D106
         strict = True
